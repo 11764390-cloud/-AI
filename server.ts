@@ -1,37 +1,24 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   app.use(express.json());
 
-  // API routes FIRST
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
-  });
-
+  // 语音代理接口
   app.post("/api/tts", async (req, res) => {
     try {
       const { text } = req.body;
-      if (!text) {
-        return res.status(400).json({ error: "Text is required" });
-      }
-
-      const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-      console.log("TTS Request received. API Key exists:", !!apiKey, "Length:", apiKey?.length, "Value:", apiKey === "undefined" ? "literal undefined" : "something else");
+      const apiKey = process.env.GEMINI_API_KEY;
       
-      if (!apiKey || apiKey === "undefined") {
-        return res.status(500).json({ error: "API key is not configured", keyLength: apiKey?.length, keyValue: apiKey });
+      if (!apiKey) {
+        return res.status(500).json({ error: "API key is not configured" });
       }
 
       const ai = new GoogleGenAI({ apiKey });
-
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text }] }],
@@ -39,7 +26,7 @@ async function startServer() {
           responseModalities: ['AUDIO'],
           speechConfig: {
             voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Puck' }, // Puck is a lively, young voice
+              prebuiltVoiceConfig: { voiceName: 'Puck' },
             },
           },
         },
@@ -51,26 +38,26 @@ async function startServer() {
       } else {
         res.status(500).json({ error: "Failed to generate audio" });
       }
-    } catch (error: any) {
-      console.error("TTS API Error:", error.message || error);
-      res.status(500).json({ error: "Internal server error", details: error.message, apiKey: process.env.GEMINI_API_KEY });
+    } catch (error) {
+      console.error("TTS API Error:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV === "production") {
+    // 生产环境（Zeabur）使用打包好的前端文件
+    app.use(express.static('dist'));
+  } else {
+    // 开发环境
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    // In production, serve static files from dist
-    app.use(express.static('dist'));
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
   });
 }
 
