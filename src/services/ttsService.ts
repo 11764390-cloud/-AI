@@ -1,6 +1,7 @@
 export async function generateSpeech(text: string): Promise<string | null> {
   try {
-    const response = await fetch('/api/tts', {
+    // 替换为您的 Zeabur 域名，例如 https://kids-story.zeabur.app/api/tts
+    const response = await fetch('https://ai-diotisionded.zeabur.app/api/tts', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
